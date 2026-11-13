@@ -9,10 +9,11 @@ from src.vectorstore import VectorStore
 
 
 FALLBACK_CHAT_MODELS = (
-    "gemini-3.7-flash",
-    "gemini-3.6-flash",
     "gemini-3.5-flash",
     "gemini-3.5-flash-lite",
+    "gemini-3.6-flash",
+    "gemini-3.7-flash",
+    "gemini-3.8-flash",
 )
 
 SYSTEM_PROMPT = (
@@ -47,8 +48,14 @@ class ResearchAssistant:
                     "GEMINI_API_KEY is not set. Add it to your .env file or environment."
                 )
             from google import genai
+            from google.genai import types
 
-            self.client = genai.Client(api_key=self.settings.gemini_api_key)
+            self.client = genai.Client(
+                api_key=self.settings.gemini_api_key,
+                http_options=types.HttpOptions(
+                    retry_options=types.HttpRetryOptions(attempts=1)
+                ),
+            )
 
     def embed_texts(self, texts: List[str], batch_size: int = 64) -> List[List[float]]:
         """Generate Gemini embeddings for a list of strings in batches."""

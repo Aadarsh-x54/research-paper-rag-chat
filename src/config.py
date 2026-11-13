@@ -13,7 +13,7 @@ class Settings:
     """Runtime settings for Gemini embeddings, generation, and vector storage."""
 
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
-    chat_model: str = os.getenv("GEMINI_CHAT_MODEL", "gemini-3.8-flash")
+    chat_model: str = os.getenv("GEMINI_CHAT_MODEL", "gemini-3.5-flash")
     embedding_model: str = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
     embedding_dim: int = int(os.getenv("EMBEDDING_DIM", "768"))
 
@@ -33,7 +33,7 @@ def get_settings() -> Settings:
     load_dotenv(override=False)
     return Settings(
         gemini_api_key=os.getenv("GEMINI_API_KEY", ""),
-        chat_model=os.getenv("GEMINI_CHAT_MODEL", "gemini-3.8-flash"),
+        chat_model=os.getenv("GEMINI_CHAT_MODEL", "gemini-3.5-flash"),
         embedding_model=os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001"),
         embedding_dim=int(os.getenv("EMBEDDING_DIM", "768")),
         pinecone_api_key=os.getenv("PINECONE_API_KEY", ""),
