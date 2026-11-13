@@ -8,6 +8,13 @@ from src.loader import DocumentChunk
 from src.vectorstore import VectorStore
 
 
+FALLBACK_CHAT_MODELS = (
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
+)
+
 SYSTEM_PROMPT = (
     "You are a helpful research paper assistant. Answer the user's question using ONLY "
     "the provided document excerpts. Cite page numbers like [p. 3] when referencing specific "
@@ -65,6 +72,28 @@ class ResearchAssistant:
         embeddings = self.embed_texts([c.text for c in chunks])
         self.store.add_documents(chunks, embeddings)
 
+    def _generate_with_fallback(self, contents: str, config: Any) -> str:
+        """Call Gemini generate_content, falling back to other models on transient 503/429/404."""
+        assert self.client is not None
+        candidates = list(dict.fromkeys([self.settings.chat_model, *FALLBACK_CHAT_MODELS]))
+        last_exc: Exception | None = None
+        for model_name in candidates:
+            try:
+                resp = self.client.models.generate_content(
+                    model=model_name,
+                    contents=contents,
+                    config=config,
+                )
+                return (resp.text or "").strip()
+            except Exception as exc:
+                msg = str(exc).upper()
+                if any(code in msg for code in ("503", "429", "404", "UNAVAILABLE", "RESOURCE_EXHAUSTED", "NOT_FOUND")):
+                    last_exc = exc
+                    continue
+                raise
+        assert last_exc is not None
+        raise last_exc
+
     def _condense_question(self, question: str) -> str:
         """Rewrite a follow-up question into a standalone query using recent history."""
         if not self.history:
@@ -72,7 +101,6 @@ class ResearchAssistant:
 
         from google.genai import types
 
-        assert self.client is not None
         history_text = "\n".join(
             f"User: {turn.question}\nAssistant: {turn.answer}"
             for turn in self.history[-4:]
@@ -83,19 +111,16 @@ class ResearchAssistant:
             f"Conversation:\n{history_text}\n\n"
             f"Follow-up: {question}\nStandalone question:"
         )
-        resp = self.client.models.generate_content(
-            model=self.settings.chat_model,
+        condensed = self._generate_with_fallback(
             contents=prompt,
             config=types.GenerateContentConfig(temperature=0.0),
         )
-        condensed = (resp.text or "").strip()
         return condensed or question
 
     def ask(self, question: str) -> Tuple[str, List[Tuple[DocumentChunk, float]]]:
         """Answer a question using retrieved paper chunks and update conversation history."""
         from google.genai import types
 
-        assert self.client is not None
         standalone_query = self._condense_question(question)
         query_vector = self.embed_texts([standalone_query])[0]
         matches = self.store.similarity_search(query_vector, top_k=self.settings.top_k)
@@ -110,15 +135,13 @@ class ResearchAssistant:
             f"Document excerpts:\n{context}\n\n"
             f"Question: {standalone_query}"
         )
-        resp = self.client.models.generate_content(
-            model=self.settings.chat_model,
+        answer = self._generate_with_fallback(
             contents=user_prompt,
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
                 temperature=0.2,
             ),
         )
-        answer = (resp.text or "").strip()
         self.history.append(ChatTurn(question=question, answer=answer))
         return answer, matches
 
