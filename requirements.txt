@@ -1,0 +1,12 @@
+google-genai>=1.0.0
+pypdf>=4.2.0
+numpy>=1.26.0
+python-dotenv>=1.0.1
+rich>=13.7.0
+
+# Optional: Pinecone cloud vector store
+pinecone>=5.0.0
+
+# Optional: interactive notebooks & testing
+jupyter>=1.0.0
+pytest>=8.0.0

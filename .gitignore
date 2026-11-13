@@ -1,0 +1,16 @@
+# Environment & secrets
+.env
+
+# Local vector index cache
+vector_db/
+
+# Python cache & virtualenvs
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
